@@ -11,10 +11,18 @@ import {
   Space,
   Descriptions,
 } from "antd";
-import { productsApi } from "../api";
-import type { Product } from "../types/product";
-import type { Comment } from "../types/comment";
+import { useSelector, useDispatch } from "react-redux";
+import type { RootState, AppDispatch } from "../store";
+import {
+  fetchProductById,
+  updateProduct,
+  addComment,
+  deleteComment,
+  clearProductState,
+} from "../store/productSlice";
 import { ProductModal } from "../components/modals/ProductModal";
+import type { Product } from "../types/product";
+import { ROUTES } from "../constants/routes";
 
 const { TextArea } = Input;
 const { Title } = Typography;
@@ -22,38 +30,35 @@ const { Title } = Typography;
 export const ProductViewPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const dispatch = useDispatch<AppDispatch>();
 
-  const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(false);
+  const { product, comments, status, commentsStatus, error } = useSelector(
+    (state: RootState) => state.product
+  );
   const [editModalVisible, setEditModalVisible] = useState(false);
-  const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
-  const [addingComment, setAddingComment] = useState(false);
-
-  const loadProduct = async () => {
-    if (!id) return;
-    setLoading(true);
-    try {
-      const data = await productsApi.getProductById(+id);
-      setProduct(data);
-      setComments(data.comments);
-    } catch (e) {
-      message.error("Failed to load product");
-      navigate("/products");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
-    loadProduct();
-  }, [id]);
+    if (id) {
+      dispatch(fetchProductById(Number(id)));
+    }
+
+    return () => {
+      dispatch(clearProductState());
+    };
+  }, [id, dispatch]);
+
+  useEffect(() => {
+    if (error && status === "failed") {
+      message.error(error);
+      navigate(ROUTES.PRODUCTS);
+    }
+  }, [error, status, navigate]);
 
   const onEditConfirm = async (data: Omit<Product, "id" | "comments">) => {
     if (!product) return;
     try {
-      const updated = await productsApi.updateProduct(product.id, data);
-      setProduct(updated);
+      await dispatch(updateProduct({ id: product.id, data })).unwrap();
       setEditModalVisible(false);
       message.success("Product updated");
     } catch {
@@ -63,34 +68,37 @@ export const ProductViewPage: React.FC = () => {
 
   const onAddComment = async () => {
     if (!product || !newComment.trim()) return;
-    setAddingComment(true);
     try {
-      const comment = await productsApi.addComment(product.id, {
-        description: newComment.trim(),
-        date: new Date().toISOString(),
-      });
-      setComments((prev) => [...prev, comment]);
+      await dispatch(
+        addComment({
+          productId: product.id,
+          description: newComment.trim(),
+          date: new Date().toISOString(),
+        })
+      ).unwrap();
       setNewComment("");
       message.success("Comment added");
     } catch {
       message.error("Failed to add comment");
-    } finally {
-      setAddingComment(false);
     }
   };
 
   const onDeleteComment = async (commentId: number) => {
     if (!product) return;
     try {
-      await productsApi.deleteComment(product.id, commentId);
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      await dispatch(
+        deleteComment({
+          productId: product.id,
+          commentId,
+        })
+      ).unwrap();
       message.success("Comment deleted");
     } catch {
       message.error("Failed to delete comment");
     }
   };
 
-  if (loading || !product) {
+  if (status === "loading" || !product) {
     return <div>Loading...</div>;
   }
 
@@ -187,7 +195,7 @@ export const ProductViewPage: React.FC = () => {
         <Button
           type="primary"
           onClick={onAddComment}
-          loading={addingComment}
+          loading={commentsStatus === "loading"}
           disabled={!newComment.trim()}
         >
           Add Comment

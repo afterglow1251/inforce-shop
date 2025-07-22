@@ -1,42 +1,42 @@
-import { useCallback, useEffect, useState } from "react";
-import { List, Button, Modal, Select, message, Avatar } from "antd";
-import { ProductModal } from "../components/modals/ProductModal";
+import React, { useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import type { RootState, AppDispatch } from "../store";
+import {
+  fetchProducts,
+  deleteProduct,
+  addProduct,
+  setSortBy,
+} from "../store/productsSlice";
+import { List, Button, Select, Modal, message, Avatar } from "antd";
 import { Link } from "react-router";
-import type { Product } from "../types/product";
-import { productsApi } from "../api";
 import { ROUTES } from "../constants/routes";
+import { ProductModal } from "../components/modals/ProductModal";
+import type { Product } from "../types/product";
 
 const { Option } = Select;
 
 export const ProductsListPage = () => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [sortBy, setSortBy] = useState<"name" | "count" | "default">("default");
-  const [addModalVisible, setAddModalVisible] = useState(false);
-  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const dispatch = useDispatch<AppDispatch>();
+  const { products, status, sortBy } = useSelector(
+    (state: RootState) => state.products
+  );
+  const [addModalVisible, setAddModalVisible] = React.useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = React.useState(false);
+  const [productToDelete, setProductToDelete] = React.useState<Product | null>(
+    null
+  );
 
   useEffect(() => {
-    loadProducts();
-  }, [sortBy]);
-
-  const loadProducts = useCallback(async () => {
-    try {
-      const data = await productsApi.getProducts(
-        sortBy === "default" ? undefined : sortBy
-      );
-      setProducts(data);
-    } catch (err) {
-      message.error("Failed to load products");
-    }
-  }, [sortBy]);
+    dispatch(fetchProducts(sortBy));
+  }, [dispatch, sortBy]);
 
   const onAddConfirm = async (data: Omit<Product, "id" | "comments">) => {
     try {
-      await productsApi.createProduct(data);
+      await dispatch(addProduct(data)).unwrap();
       message.success("Product added");
       setAddModalVisible(false);
-      loadProducts();
-    } catch (err) {
+      dispatch(fetchProducts(sortBy));
+    } catch {
       message.error("Failed to add product");
     }
   };
@@ -44,12 +44,12 @@ export const ProductsListPage = () => {
   const onDeleteConfirm = async () => {
     if (!productToDelete) return;
     try {
-      await productsApi.deleteProduct(productToDelete.id);
+      await dispatch(deleteProduct(productToDelete.id)).unwrap();
       message.success("Product deleted");
       setDeleteModalVisible(false);
       setProductToDelete(null);
-      loadProducts();
-    } catch (err) {
+      dispatch(fetchProducts(sortBy));
+    } catch {
       message.error("Failed to delete product");
     }
   };
@@ -59,7 +59,7 @@ export const ProductsListPage = () => {
       <div style={{ marginBottom: 16, display: "flex", gap: 10 }}>
         <Select
           value={sortBy}
-          onChange={(val) => setSortBy(val)}
+          onChange={(val) => dispatch(setSortBy(val))}
           style={{ width: 150 }}
         >
           <Option value="default">Default sorting</Option>
@@ -75,10 +75,11 @@ export const ProductsListPage = () => {
       <List
         bordered
         dataSource={products}
+        loading={status === "loading"}
         renderItem={(item) => (
           <List.Item
             actions={[
-              <Link to={ROUTES.PRODUCT_DETAILS(item.id)}>
+              <Link to={ROUTES.PRODUCT_DETAILS(item.id)} key="view">
                 <Button type="default">View</Button>
               </Link>,
               <Button
@@ -87,10 +88,12 @@ export const ProductsListPage = () => {
                   setProductToDelete(item);
                   setDeleteModalVisible(true);
                 }}
+                key="delete"
               >
                 Delete
               </Button>,
             ]}
+            key={item.id}
           >
             <List.Item.Meta
               avatar={
