@@ -6,7 +6,7 @@ import { ROUTES } from "../../../constants/routes";
 const { Header: AntHeader } = Layout;
 const { Title } = Typography;
 
-export const Header = () => {
+export const Header: React.FC = () => {
   return (
     <AntHeader className={styles.header}>
       <div className={styles.container}>

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import type { RootState, AppDispatch } from "../store";
 import {
@@ -15,16 +15,14 @@ import type { Product } from "../types/product";
 
 const { Option } = Select;
 
-export const ProductsListPage = () => {
+export const ProductsListPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { products, status, sortBy } = useSelector(
     (state: RootState) => state.products
   );
-  const [addModalVisible, setAddModalVisible] = React.useState(false);
-  const [deleteModalVisible, setDeleteModalVisible] = React.useState(false);
-  const [productToDelete, setProductToDelete] = React.useState<Product | null>(
-    null
-  );
+  const [addModalVisible, setAddModalVisible] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
   useEffect(() => {
     dispatch(fetchProducts(sortBy));
