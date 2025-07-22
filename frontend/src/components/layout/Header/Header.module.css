@@ -1,0 +1,20 @@
+.header {
+  background-color: var(--color-white);
+  padding: 0 24px;
+  box-shadow: 0 2px 8px var(--color-shadow);
+}
+
+.container {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.link {
+  text-decoration: none;
+}
+
+.title {
+  margin: 0;
+  color: var(--color-black);
+}
